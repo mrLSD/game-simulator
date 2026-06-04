@@ -1,0 +1,40 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode — пользовательское состояние (не для репозитория)
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Xcode — продукты сборки
+build/
+DerivedData/
+*.o
+*.hmap
+
+# Отладочные символы и архивы
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+*.ipa
+
+# Артефакты профилирования/покрытия (создаются при инструментированных
+# запусках бинаря из терминала, напр. снапшот-прогоны)
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+
+# Swift Package Manager (на будущее)
+.swiftpm/
+.build/
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Claude Code — локальные пользовательские настройки
+.claude/settings.local.json
