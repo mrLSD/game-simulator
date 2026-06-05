@@ -21,7 +21,6 @@ extension ScreenNode {
     }
 
     func makeAircraftCardIcon(_ action: AircraftMenuAction, size: CGFloat) -> SKNode {
-        if let icon = assetIcon("icon.card.\(action.rawValue)", size: size) { return icon }
         switch action {
         case .myPlanes:
             let node = SKNode()

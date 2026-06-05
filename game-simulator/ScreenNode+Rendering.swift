@@ -157,50 +157,98 @@ extension ScreenNode {
     }
 
     /// Glossy teal banner with beveled gold edges — the section-header ribbon.
-    func addRibbonBanner(centerY: CGFloat, height: CGFloat, slant: CGFloat, zBase: CGFloat) {
+    /// Smooth horizontal gradient baked into a cached texture; left color first.
+    func horizontalGradientTexture(_ size: CGSize, _ colors: [SKColor], locations: [CGFloat]? = nil) -> SKTexture {
+        let w = max(2, size.width.rounded()), h = max(2, size.height.rounded())
+        let key = "h|\(Int(w))x\(Int(h))|" + colors.map(\.cacheKey).joined(separator: ";")
+            + "|" + (locations?.map { String(format: "%.2f", $0) }.joined(separator: ",") ?? "")
+        if let cached = ScreenNode.gradientCache[key] { return cached }
+
+        let image = NSImage(size: CGSize(width: w, height: h))
+        image.lockFocus()
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            let space = CGColorSpace(name: CGColorSpace.sRGB)!
+            let cgColors = colors.map { $0.cgComponents(in: space) } as CFArray
+            if let gradient = CGGradient(colorsSpace: space, colors: cgColors, locations: locations) {
+                ctx.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: w, y: 0),
+                                       options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            }
+        }
+        image.unlockFocus()
+        let texture = SKTexture(image: image)
+        ScreenNode.gradientCache[key] = texture
+        return texture
+    }
+
+    /// Glossy teal banner with beveled gold edges that bow towards the middle
+    /// (the band is pinched at the center by `sag` on each side).
+    func addRibbonBanner(centerY: CGFloat, height: CGFloat, sag: CGFloat, zBase: CGFloat) {
         let top = centerY + height / 2
         let bottom = centerY - height / 2
         let leftX: CGFloat = -30
         let rightX = size.width + 30
+        let midX = size.width / 2
+        // A quadratic curve passes at half the control offset in its middle,
+        // so the control points sit at 2×sag.
+        let topControl = CGPoint(x: midX, y: top - sag * 2)
+        let bottomControl = CGPoint(x: midX, y: bottom + sag * 2)
 
         let path = CGMutablePath()
         path.move(to: CGPoint(x: leftX, y: top))
-        path.addLine(to: CGPoint(x: rightX, y: top - slant))
+        path.addQuadCurve(to: CGPoint(x: rightX, y: top), control: topControl)
         path.addLine(to: CGPoint(x: rightX, y: bottom))
-        path.addLine(to: CGPoint(x: leftX, y: bottom + slant))
+        path.addQuadCurve(to: CGPoint(x: leftX, y: bottom), control: bottomControl)
         path.closeSubpath()
 
         let ribbon = SKShapeNode(path: path)
         ribbon.fillColor = .white
         ribbon.fillTexture = verticalGradientTexture(
             CGSize(width: size.width + 60, height: height),
-            [SKColor.aircraftHeader.adjustingBrightness(0.18),
-             SKColor.aircraftHeader,
-             SKColor.aircraftHeader.adjustingBrightness(-0.17)]
+            [SKColor(red: 0.15, green: 0.52, blue: 0.67, alpha: 1),
+             SKColor(red: 0.07, green: 0.41, blue: 0.57, alpha: 1),
+             SKColor(red: 0.03, green: 0.30, blue: 0.45, alpha: 1)]
         )
         ribbon.strokeColor = .clear
         ribbon.zPosition = zBase
         addChild(ribbon)
 
+        // Side vignette: the band reads lighter in the middle and noticeably
+        // darker towards the left/right edges, like the original banner.
+        let vignette = SKShapeNode(path: path)
+        vignette.fillColor = .white
+        vignette.fillTexture = horizontalGradientTexture(
+            CGSize(width: size.width + 60, height: height),
+            [SKColor(red: 0.01, green: 0.14, blue: 0.24, alpha: 0.55),
+             SKColor(red: 0.01, green: 0.14, blue: 0.24, alpha: 0.0),
+             SKColor(red: 0.01, green: 0.14, blue: 0.24, alpha: 0.0),
+             SKColor(red: 0.01, green: 0.14, blue: 0.24, alpha: 0.55)],
+            locations: [0, 0.30, 0.70, 1]
+        )
+        vignette.strokeColor = .clear
+        vignette.zPosition = zBase + 0.6
+        addChild(vignette)
+
+        let sheenBottom = top - height * 0.42
         let sheenPath = CGMutablePath()
         sheenPath.move(to: CGPoint(x: leftX, y: top))
-        sheenPath.addLine(to: CGPoint(x: rightX, y: top - slant))
-        sheenPath.addLine(to: CGPoint(x: rightX, y: top - slant - height * 0.40))
-        sheenPath.addLine(to: CGPoint(x: leftX, y: top - height * 0.40))
+        sheenPath.addQuadCurve(to: CGPoint(x: rightX, y: top), control: topControl)
+        sheenPath.addLine(to: CGPoint(x: rightX, y: sheenBottom))
+        sheenPath.addQuadCurve(to: CGPoint(x: leftX, y: sheenBottom),
+                               control: CGPoint(x: midX, y: sheenBottom - sag * 2))
         sheenPath.closeSubpath()
         let sheen = SKShapeNode(path: sheenPath)
-        sheen.fillColor = SKColor.white.withAlphaComponent(0.12)
+        sheen.fillColor = SKColor.white.withAlphaComponent(0.10)
         sheen.strokeColor = .clear
         sheen.zPosition = zBase + 0.5
         addChild(sheen)
 
         for isTop in [true, false] {
-            let startY = isTop ? top : bottom + slant
-            let endY = isTop ? top - slant : bottom
+            let edgeY = isTop ? top : bottom
+            let control = isTop ? topControl : bottomControl
 
             let edge = CGMutablePath()
-            edge.move(to: CGPoint(x: leftX, y: startY))
-            edge.addLine(to: CGPoint(x: rightX, y: endY))
+            edge.move(to: CGPoint(x: leftX, y: edgeY))
+            edge.addQuadCurve(to: CGPoint(x: rightX, y: edgeY), control: control)
             let gold = SKShapeNode(path: edge)
             gold.strokeColor = SKColor.gold
             gold.lineWidth = 5
@@ -209,8 +257,9 @@ extension ScreenNode {
 
             let inset: CGFloat = isTop ? -2.5 : 2.5
             let hlPath = CGMutablePath()
-            hlPath.move(to: CGPoint(x: leftX, y: startY + inset))
-            hlPath.addLine(to: CGPoint(x: rightX, y: endY + inset))
+            hlPath.move(to: CGPoint(x: leftX, y: edgeY + inset))
+            hlPath.addQuadCurve(to: CGPoint(x: rightX, y: edgeY + inset),
+                                control: CGPoint(x: control.x, y: control.y + inset))
             let highlight = SKShapeNode(path: hlPath)
             highlight.strokeColor = SKColor.gold.adjustingBrightness(0.30)
             highlight.lineWidth = 1.5

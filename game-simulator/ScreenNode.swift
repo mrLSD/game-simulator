@@ -14,6 +14,9 @@ class ScreenNode: SKNode {
     static var imageCache: [String: SKTexture] = [:]
     static var gradientCache: [String: SKTexture] = [:]
 
+    /// Currently hovered HUD "+" button (the shared top bar lives on every screen).
+    weak var hoveredHUDButton: SKNode?
+
     init(in gameScene: GameScene) {
         self.gameScene = gameScene
         super.init()
@@ -51,7 +54,9 @@ class ScreenNode: SKNode {
     func mouseDown(at point: CGPoint) {}
     func mouseDragged(at point: CGPoint) {}
     func mouseUp(at point: CGPoint) {}
-    func mouseMoved(at point: CGPoint) {}
+    func mouseMoved(at point: CGPoint) {
+        updateHUDHover(at: point)
+    }
     /// Escape key; each screen decides where it leads.
     func handleEscape() {}
 }
@@ -181,24 +186,19 @@ extension ScreenNode {
         icon.zPosition = 4
         node.addChild(icon)
 
-        let plusDiameter = size.height * 0.82
+        let plusSide = size.height * 0.82
         let labelLeft = -size.width / 2 + iconSize * 0.86
-        let labelRight = size.width / 2 - plusDiameter * 1.14
+        let labelRight = size.width / 2 - plusSide * 1.14
         let labelWidth = max(44, labelRight - labelLeft)
         let value = makeFittedLabel(counter.formattedAmount, maxWidth: labelWidth, maxFontSize: min(23, size.height * 0.58), minFontSize: 13, color: .white, alignment: .center)
         value.position = CGPoint(x: (labelLeft + labelRight) / 2, y: 0)
         value.zPosition = 4
         node.addChild(value)
 
-        let plus = makeRoundGlossButton(diameter: plusDiameter, color: SKColor.buttonBlue)
-        plus.position = CGPoint(x: size.width / 2 - plusDiameter * 0.46, y: 0)
+        let plus = makeResourcePlusButton(side: plusSide, kind: counter.kind)
+        plus.position = CGPoint(x: size.width / 2 - plusSide * 0.46, y: 0)
         plus.zPosition = 5
         node.addChild(plus)
-
-        let plusLabel = makeLabel("+", size: plusDiameter * 0.6, color: .white, alignment: .center)
-        plusLabel.position = plus.position
-        plusLabel.zPosition = 6
-        node.addChild(plusLabel)
 
         return node
     }
@@ -226,6 +226,82 @@ extension ScreenNode {
 
         return node
     }
+
+    /// The "+" buy button on a resource counter: rounded square with a dark rim
+    /// and a steel-blue volumetric gradient. Hover highlights it like any other
+    /// clickable button; the click action is not wired up yet.
+    func makeResourcePlusButton(side: CGFloat, kind: ResourceKind) -> SKNode {
+        let node = SKNode()
+        node.name = "hud.plus.\(kind.rawValue)"
+
+        let radius = side * 0.26
+        let face = SKShapeNode(rectOf: CGSize(width: side, height: side), cornerRadius: radius)
+        face.fillColor = .white
+        face.fillTexture = verticalGradientTexture(CGSize(width: side, height: side), [
+            SKColor(red: 0.63, green: 0.73, blue: 0.81, alpha: 1),
+            SKColor(red: 0.32, green: 0.48, blue: 0.63, alpha: 1),
+            SKColor(red: 0.14, green: 0.28, blue: 0.43, alpha: 1)
+        ])
+        face.strokeColor = SKColor(red: 0.06, green: 0.10, blue: 0.15, alpha: 1)
+        face.lineWidth = max(1.5, side * 0.07)
+        face.zPosition = 1
+        node.addChild(face)
+
+        let highlight = SKShapeNode(rectOf: CGSize(width: side - 9, height: 1.5), cornerRadius: 0.75)
+        highlight.fillColor = SKColor.white.withAlphaComponent(0.35)
+        highlight.strokeColor = .clear
+        highlight.position = CGPoint(x: 0, y: side / 2 - 3.5)
+        highlight.zPosition = 2
+        node.addChild(highlight)
+
+        let barLength = side * 0.54
+        let barThickness = side * 0.16
+        for isVertical in [false, true] {
+            let bar = SKShapeNode(
+                rectOf: CGSize(width: isVertical ? barThickness : barLength,
+                               height: isVertical ? barLength : barThickness),
+                cornerRadius: barThickness * 0.22
+            )
+            bar.fillColor = .white
+            bar.strokeColor = .clear
+            bar.zPosition = 3
+            node.addChild(bar)
+        }
+
+        let selection = SKShapeNode(rectOf: CGSize(width: side + 4, height: side + 4), cornerRadius: radius + 2)
+        selection.name = "selection"
+        selection.fillColor = .clear
+        selection.strokeColor = .clear
+        selection.lineWidth = 2.5
+        selection.zPosition = 5
+        node.addChild(selection)
+
+        return node
+    }
+
+    /// HUD "+" buttons live on every screen, so their hover is handled by the
+    /// base `mouseMoved`; screen subclasses call `super` from their overrides.
+    func updateHUDHover(at point: CGPoint) {
+        let target = hudPlusButton(at: point)
+        guard target !== hoveredHUDButton else { return }
+
+        setHoverNode(hoveredHUDButton, hovered: false)
+        hoveredHUDButton = target
+        setHoverNode(target, hovered: true)
+    }
+
+    private func hudPlusButton(at point: CGPoint) -> SKNode? {
+        for node in nodes(at: point) {
+            var current: SKNode? = node
+            while let candidate = current {
+                if candidate.name?.hasPrefix("hud.plus.") == true {
+                    return candidate
+                }
+                current = candidate.parent
+            }
+        }
+        return nil
+    }
 }
 
 // MARK: - Shared press feedback
@@ -237,5 +313,12 @@ extension ScreenNode {
         let animation = SKAction.scale(to: scale, duration: 0.08)
         animation.timingMode = .easeOut
         node.run(animation, withKey: "press")
+    }
+
+    /// Lights up the node's "selection" ring — the shared hover affordance.
+    func setHoverNode(_ node: SKNode?, hovered: Bool) {
+        let stroke = node?.childNode(withName: "selection") as? SKShapeNode
+        stroke?.strokeColor = hovered ? SKColor.white.withAlphaComponent(0.82) : .clear
+        stroke?.glowWidth = hovered ? 2 : 0
     }
 }

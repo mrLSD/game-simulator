@@ -45,6 +45,8 @@ final class MainScreen: ScreenNode {
     }
 
     override func mouseMoved(at point: CGPoint) {
+        super.mouseMoved(at: point)
+
         let nextHover = action(at: point)
         guard nextHover != hoveredAction else { return }
         hoveredAction = nextHover

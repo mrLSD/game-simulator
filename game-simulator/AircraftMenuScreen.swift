@@ -14,8 +14,8 @@ final class AircraftMenuScreen: AircraftScreen {
         darkBase.zPosition = -100
         addChild(darkBase)
 
-        let heroHeight: CGFloat = 320
-        let heroMinY = size.height - layoutTopHeight - heroHeight + 26
+        let heroHeight: CGFloat = 352
+        let heroMinY = size.height - heroHeight + 26
         let heroRect = CGRect(x: 0, y: heroMinY, width: size.width, height: heroHeight)
         addAircraftHeroBackground(in: heroRect)
 
@@ -26,7 +26,7 @@ final class AircraftMenuScreen: AircraftScreen {
         content.zPosition = -20
         addChild(content)
 
-        addAircraftHeader(heroRect: heroRect)
+        addAircraftHeader()
         addAircraftCards(contentTop: heroMinY)
         addAircraftBackButton()
         addTopStateLayer(showTimers: false, showAvatar: false)
@@ -42,23 +42,32 @@ final class AircraftMenuScreen: AircraftScreen {
 }
 
 extension AircraftMenuScreen {
-    func addAircraftHeader(heroRect: CGRect) {
+    func addAircraftHeader() {
         let ribbonHeight: CGFloat = 74
-        let centerY = heroRect.maxY - 58
-        addRibbonBanner(centerY: centerY, height: ribbonHeight, slant: 18, zBase: 5)
+        // Anchored right under the resource bar, same as the list/detail headers.
+        let centerY = size.height - 80
+        addRibbonBanner(centerY: centerY, height: ribbonHeight, sag: 8, zBase: 5)
 
         let title = makeFittedLabel("Самолет", maxWidth: 260, maxFontSize: 35, minFontSize: 24, color: .white, alignment: .center)
         title.position = CGPoint(x: size.width * 0.53, y: centerY)
         title.zPosition = 8
         addChild(title)
 
-        let sectionIcon = SKNode()
-        addButtonChrome(to: sectionIcon, size: CGSize(width: 76, height: 66), radius: 9)
-        let icon = makePlaneIcon(size: 54)
-        icon.zRotation = -CGFloat.pi / 2
-        icon.position = CGPoint(x: 0, y: 2)
-        icon.zPosition = 4
-        sectionIcon.addChild(icon)
+        // Left header icon: art from the `icon.header.aircraft` slot,
+        // procedural plate as a fallback while the slot is empty.
+        let sectionIcon: SKNode
+        if let icon = assetIcon("icon.header.aircraft", size: 76) {
+            sectionIcon = icon
+        } else {
+            let plate = SKNode()
+            addButtonChrome(to: plate, size: CGSize(width: 76, height: 66), radius: 9)
+            let glyph = makePlaneIcon(size: 54)
+            glyph.zRotation = -CGFloat.pi / 2
+            glyph.position = CGPoint(x: 0, y: 2)
+            glyph.zPosition = 4
+            plate.addChild(glyph)
+            sectionIcon = plate
+        }
         sectionIcon.position = CGPoint(x: 82, y: centerY + 8)
         sectionIcon.zPosition = 9
         addChild(sectionIcon)
@@ -81,11 +90,11 @@ extension AircraftMenuScreen {
             (.maintenanceLog, ["Журнал", "обслуживания"]),
             (.liveries, ["Управление", "ливреями"])
         ]
-        let cardSize = CGSize(width: 210, height: 260)
-        let gap: CGFloat = 18
+        let cardSize = CGSize(width: 180, height: 230)
+        let gap: CGFloat = 6
         let totalWidth = CGFloat(cards.count) * cardSize.width + CGFloat(cards.count - 1) * gap
-        var x = (size.width - totalWidth) / 2 + cardSize.width / 2
-        let centerY = min(contentTop - 116, 310)
+        var x: CGFloat = 235
+        let centerY = contentTop - 180
 
         for (action, titleLines) in cards {
             let card = makeAircraftCard(action, titleLines: titleLines, size: cardSize)
@@ -93,6 +102,16 @@ extension AircraftMenuScreen {
             card.zPosition = 20
             addChild(card)
             x += cardSize.width + gap
+        }
+    }
+
+    private func cardEmoji(for action: AircraftMenuAction) -> String {
+        switch action {
+        case .myPlanes: return "🌠"
+        case .buyPlanes: return "🪁"
+        case .maintenanceLog: return "🗓️"
+        case .liveries: return "👨🏻‍✈️"
+        default: return "✈️"
         }
     }
 
@@ -139,12 +158,15 @@ extension AircraftMenuScreen {
         sheen.zPosition = 2.5
         node.addChild(sheen)
 
-        let icon = makeAircraftCardIcon(action, size: 134)
+        let icon = SKLabelNode(text: cardEmoji(for: action))
+        icon.fontSize = 120
+        icon.horizontalAlignmentMode = .center
+        icon.verticalAlignmentMode = .center
         icon.position = CGPoint(x: 0, y: 52)
         icon.zPosition = 4
         node.addChild(icon)
 
-        let labelSize = CGSize(width: size.width - 34, height: 62)
+        let labelSize = CGSize(width: size.width - 34, height: 45)
         let labelBg = SKShapeNode(rectOf: labelSize, cornerRadius: 18)
         labelBg.fillColor = .white
         labelBg.fillTexture = verticalGradientTexture(labelSize, [
@@ -177,5 +199,4 @@ extension AircraftMenuScreen {
         aircraftButtons[action] = node
         return node
     }
-
 }

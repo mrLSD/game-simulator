@@ -75,6 +75,7 @@ class AircraftScreen: ScreenNode {
     }
 
     override func mouseMoved(at point: CGPoint) {
+        super.mouseMoved(at: point)
         updateAircraftHover(with: aircraftHit(at: point))
     }
 }
@@ -112,12 +113,6 @@ extension AircraftScreen {
     func setPressed(_ action: AircraftMenuAction?, pressed: Bool) {
         guard let action, let node = aircraftButtons[action] else { return }
         setPressedNode(node, pressed: pressed)
-    }
-
-    func setHoverNode(_ node: SKNode?, hovered: Bool) {
-        let stroke = node?.childNode(withName: "selection") as? SKShapeNode
-        stroke?.strokeColor = hovered ? SKColor.white.withAlphaComponent(0.82) : .clear
-        stroke?.glowWidth = hovered ? 2 : 0
     }
 
     func updateAircraftHover(with hit: (action: AircraftMenuAction, node: SKNode)?) {
@@ -158,8 +153,8 @@ extension AircraftScreen {
         showClock: Bool
     ) {
         let ribbonHeight: CGFloat = 74
-        let centerY = size.height - layoutTopHeight + 2
-        addRibbonBanner(centerY: centerY, height: ribbonHeight, slant: 16, zBase: 6)
+        let centerY = size.height - layoutTopHeight + 12
+        addRibbonBanner(centerY: centerY, height: ribbonHeight, sag: 8, zBase: 6)
 
         let sectionIcon = makeAircraftCardIcon(.myPlanes, size: 104)
         sectionIcon.position = CGPoint(x: 82, y: centerY + 6)
@@ -296,8 +291,8 @@ extension AircraftScreen {
 
     func addAircraftBackButton(
         _ action: AircraftMenuAction = .back,
-        position: CGPoint = CGPoint(x: 82, y: 52),
-        size: CGSize = CGSize(width: 116, height: 48)
+        position: CGPoint = CGPoint(x: 62, y: 33),
+        size: CGSize = CGSize(width: 80, height: 35)
     ) {
         let node = SKNode()
         node.name = "aircraft.\(action.rawValue)"
@@ -324,6 +319,7 @@ extension AircraftScreen {
         face.zPosition = 2
         node.addChild(face)
 
+        // ←
         let arrow = makeLabel("←", size: 42, color: .white, alignment: .center)
         arrow.position = CGPoint(x: -3, y: 1)
         arrow.zPosition = 3
